@@ -1,0 +1,9 @@
+C:\POCs\OrderSupervisor\OrderSupervisor.Common\bin\Debug\netcoreapp3.1\OrderSupervisor.Common.deps.json
+C:\POCs\OrderSupervisor\OrderSupervisor.Common\bin\Debug\netcoreapp3.1\OrderSupervisor.Common.dll
+C:\POCs\OrderSupervisor\OrderSupervisor.Common\bin\Debug\netcoreapp3.1\OrderSupervisor.Common.pdb
+C:\POCs\OrderSupervisor\OrderSupervisor.Common\obj\Debug\netcoreapp3.1\RefitStubs.g.cs
+C:\POCs\OrderSupervisor\OrderSupervisor.Common\obj\Debug\netcoreapp3.1\OrderSupervisor.Common.AssemblyInfoInputs.cache
+C:\POCs\OrderSupervisor\OrderSupervisor.Common\obj\Debug\netcoreapp3.1\OrderSupervisor.Common.AssemblyInfo.cs
+C:\POCs\OrderSupervisor\OrderSupervisor.Common\obj\Debug\netcoreapp3.1\OrderSupervisor.Common.csproj.CoreCompileInputs.cache
+C:\POCs\OrderSupervisor\OrderSupervisor.Common\obj\Debug\netcoreapp3.1\OrderSupervisor.Common.dll
+C:\POCs\OrderSupervisor\OrderSupervisor.Common\obj\Debug\netcoreapp3.1\OrderSupervisor.Common.pdb
