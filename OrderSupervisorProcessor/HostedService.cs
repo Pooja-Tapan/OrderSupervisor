@@ -82,6 +82,16 @@ namespace OrderSupervisorProcessor
                             var message = JsonConvert.DeserializeObject<EnqueueMessage>(Encoding.UTF8.GetString(queueMessage.Body));
 
                             retryQueueMessage = queueMessage;
+                            if (queueMessage.DequeueCount >= retryLimit)
+                            {
+                                Console.WriteLine("Could not process the message beyond retry limits. Sending message to poison queue");
+                                //TODO - Send message to poison queue and delete the message
+                                //routePoisonMessage(retryQueueMessage);
+
+                                //Delete the message so that it does not reappear on the queue
+                                await queueClient.DeleteMessageAsync(retryQueueMessage.MessageId, retryQueueMessage.PopReceipt);
+                                continue;
+                            }
 
                             // "Process" the message
                             Console.WriteLine($"Received Order: {message.OrderId}");
@@ -136,7 +146,7 @@ namespace OrderSupervisorProcessor
 
                 if (retryQueueMessage.DequeueCount >= retryLimit)
                 {
-                    Console.WriteLine("Could not process the message after 5 retries. Sending message to poison queue");
+                    Console.WriteLine("Could not process the message beyond retry limits. Sending message to poison queue");
                     //TODO - Send message to poison queue and delete the message
                     //routePoisonMessage(retryQueueMessage);
 
