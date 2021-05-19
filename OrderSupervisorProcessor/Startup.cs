@@ -50,6 +50,7 @@ namespace OrderSupervisorProcessor
 
             services.Configure<StorageAccount>(Configuration.GetSection("StorageAccount"));
 
+            services.AddSingleton<ReadyHealthCheckResponseWriter>();
             services.AddHostedService<HostedService>();
             services.AddSingleton<IQueueClientFactory, QueueClientFactory>();
             services.AddSingleton<IRetryIntervalGenerator, ExponentialRetryIntervalGenerator>();

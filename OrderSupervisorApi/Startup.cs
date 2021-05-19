@@ -9,7 +9,6 @@ using Microsoft.Extensions.PlatformAbstractions;
 using Microsoft.OpenApi.Models;
 using OrderSupervisor.Common.AzureQueue;
 using OrderSupervisor.Common.Models;
-using OrderSupervisor.Common.Models.Message;
 using OrderSupervisor.Common.Repositories;
 using OrderSupervisorApi.Swagger;
 using OrderSupervisorApi.Swagger.SchemaDefinitions;
@@ -86,7 +85,8 @@ namespace OrderSupervisorApi
             }
 
             services.AddSingleton<IQueueClientFactory, QueueClientFactory>();
-            services.AddSingleton<IQueueOperations<Order>, QueueOperations<Order>>();
+            services.AddSingleton<IQueueOperations<EnqueueMessage>, QueueOperations<EnqueueMessage>>();
+            services.Configure<StorageAccount>(Configuration.GetSection("StorageAccount"));
             services.AddSingleton<ICloudTableClient, CloudTableClient>();
             services.AddSingleton<IOrderRepository, OrderRepository>();
         }

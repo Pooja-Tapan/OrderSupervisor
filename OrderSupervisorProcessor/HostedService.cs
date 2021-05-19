@@ -9,7 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
 using OrderSupervisor.Common.AzureQueue;
 using OrderSupervisor.Common.Models;
-using OrderSupervisor.Common.Models.OrderDto;
+using OrderSupervisor.Common.Models.ConfirmationDto;
 using OrderSupervisor.Common.Repositories;
 
 namespace OrderSupervisorProcessor
@@ -58,7 +58,7 @@ namespace OrderSupervisorProcessor
 
         private async Task ProcessMessageAsync(CancellationToken cancellationToken)
         {
-            var agentId = new Guid();
+            var agentId = Guid.NewGuid();
             Random random = new Random();
             var magicNumber = random.Next(10);
 
@@ -84,9 +84,9 @@ namespace OrderSupervisorProcessor
                             retryQueueMessage = queueMessage;
 
                             // "Process" the message
-                            Console.WriteLine($"Received Order: {message.Order.OrderId}");
+                            Console.WriteLine($"Received Order: {message.OrderId}");
 
-                            if (magicNumber == message.Order.RandomNumber)
+                            if (magicNumber == message.RandomNumber)
                             {
                                 Console.WriteLine($"Oh no, my magic number was found.");
                                 startLoop = false;
@@ -94,12 +94,12 @@ namespace OrderSupervisorProcessor
                             }
                             else
                             {
-                                Console.WriteLine($"Displaying Order information: {message.Order.OrderText}");
+                                Console.WriteLine($"Displaying Order information: {message.OrderText}");
 
                                 //MakeApi call to store the "processed" order status in "Confirmations" table.
                                 var orderConfirmation = new Confirmation
                                 {
-                                    OrderId = message.Order.OrderId,
+                                    OrderId = message.OrderId,
                                     AgentId = agentId,
                                     OrderStatus = "Processed"
                                 };
@@ -108,7 +108,7 @@ namespace OrderSupervisorProcessor
 
                                 // Let the service know we have processed the message and
                                 // it can be safely deleted.
-                                if (result.Result.Status)
+                                if (result.Status)
                                 {
                                     await queueClient.DeleteMessageAsync(queueMessage.MessageId, queueMessage.PopReceipt);
                                 }

@@ -1,5 +1,5 @@
 ﻿using OrderSupervisor.Common.Models;
-using OrderSupervisor.Common.Models.OrderDto;
+using OrderSupervisor.Common.Models.ConfirmationDto;
 using System.Threading.Tasks;
 
 namespace OrderSupervisor.Common.Repositories

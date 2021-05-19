@@ -2,6 +2,6 @@
 {
     public class OrderSupervisorApiResponse
     {
-        public Result Result { get; set; }
+        public bool Status { get; set; }
     }
 }

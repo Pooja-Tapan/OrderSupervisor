@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Memory;
 using OrderSupervisor.Common.AzureQueue;
 using OrderSupervisor.Common.Models;
-using OrderSupervisor.Common.Models.Message;
 using System;
 using System.Threading.Tasks;
 
@@ -15,13 +13,11 @@ namespace OrderSupervisorApi.Controllers.V1
     //[Microsoft.AspNetCore.Authorization.Authorize]
     public class OrderSupervisorController : Controller
     {
-        private IMemoryCache memoryCache;
-        private readonly IQueueOperations<Order> queueOperations;
+        private readonly IQueueOperations<EnqueueMessage> queueOperations;
 
-        public OrderSupervisorController(IQueueOperations<Order> queueOperations, IMemoryCache memoryCache)
+        public OrderSupervisorController(IQueueOperations<EnqueueMessage> queueOperations)
         {
             this.queueOperations = queueOperations;
-            this.memoryCache = memoryCache;
         }
 
         [HttpPost]
@@ -33,15 +29,16 @@ namespace OrderSupervisorApi.Controllers.V1
             try
             {
                 Random random = new Random();
-                enqueueMessageRequest.Order.RandomNumber = random.Next(10);
-                Console.WriteLine($"Send order #{enqueueMessageRequest.Order.OrderId} with random number {enqueueMessageRequest.Order.RandomNumber}");
+                enqueueMessageRequest.RandomNumber = random.Next(10);
+                Console.WriteLine($"Send order #{enqueueMessageRequest.OrderId} with random number {enqueueMessageRequest.RandomNumber}");
 
-                await queueOperations.PublishAsync(enqueueMessageRequest.Order);
+                await queueOperations.PublishAsync(enqueueMessageRequest);
 
                 return Accepted();
             }
-            catch (Exception)
+            catch (Exception exception)
             {
+                Console.WriteLine(exception.Message);
                 throw;
             }
         }               

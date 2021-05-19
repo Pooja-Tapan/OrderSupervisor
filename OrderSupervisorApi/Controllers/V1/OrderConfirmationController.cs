@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OrderSupervisor.Common.Models;
-using OrderSupervisor.Common.Models.OrderDto;
+using OrderSupervisor.Common.Models.ConfirmationDto;
 using OrderSupervisor.Common.Repositories;
 using System;
 using System.Threading.Tasks;

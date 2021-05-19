@@ -1,6 +1,6 @@
 ﻿using Microsoft.WindowsAzure.Storage.Table;
 using OrderSupervisor.Common.Models;
-using OrderSupervisor.Common.Models.OrderDto;
+using OrderSupervisor.Common.Models.ConfirmationDto;
 using System.Threading.Tasks;
 
 namespace OrderSupervisor.Common.Repositories
@@ -23,7 +23,14 @@ namespace OrderSupervisor.Common.Repositories
 
         public async Task<Result> SaveOrderProcessStatusAsync(Confirmation confirmationStatus)
         {
-            var operation = TableOperation.InsertOrReplace(confirmationStatus);
+            Confirmation confirmationEntity = new Confirmation(confirmationStatus.AgentId, confirmationStatus.OrderId)
+            {
+                OrderId = confirmationStatus.OrderId,
+                OrderStatus = confirmationStatus.OrderStatus,
+                AgentId= confirmationStatus.AgentId
+            };
+
+            var operation = TableOperation.InsertOrReplace(confirmationEntity);
             var response = await table.ExecuteAsync(operation);
 
             if (null != response.Result)
