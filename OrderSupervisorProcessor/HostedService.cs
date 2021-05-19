@@ -140,18 +140,21 @@ namespace OrderSupervisorProcessor
             {
                 telemetryClient.TrackException(exception);
 
-                //Implementing retry mechanism for messages not processed due to temporary error.
-                await queueClient.UpdateMessageAsync(retryQueueMessage.MessageId, retryQueueMessage.PopReceipt, retryQueueMessage.Body,
-                            retryIntervalGenerator.GetNext(Convert.ToInt32(retryQueueMessage.DequeueCount)), cancellationToken);
-
-                if (retryQueueMessage.DequeueCount >= retryLimit)
+                if (retryQueueMessage != null)
                 {
-                    Console.WriteLine("Could not process the message beyond retry limits. Sending message to poison queue");
-                    //TODO - Send message to poison queue and delete the message
-                    //routePoisonMessage(retryQueueMessage);
+                    //Implementing retry mechanism for messages not processed due to temporary error.
+                    await queueClient.UpdateMessageAsync(retryQueueMessage.MessageId, retryQueueMessage.PopReceipt, retryQueueMessage.Body,
+                                retryIntervalGenerator.GetNext(Convert.ToInt32(retryQueueMessage.DequeueCount)), cancellationToken);
 
-                    //Delete the message so that it does not reappear on the queue
-                    await queueClient .DeleteMessageAsync(retryQueueMessage.MessageId, retryQueueMessage.PopReceipt);
+                    if (retryQueueMessage.DequeueCount >= retryLimit)
+                    {
+                        Console.WriteLine("Could not process the message beyond retry limits. Sending message to poison queue");
+                        //TODO - Send message to poison queue and delete the message
+                        //routePoisonMessage(retryQueueMessage);
+
+                        //Delete the message so that it does not reappear on the queue
+                        await queueClient.DeleteMessageAsync(retryQueueMessage.MessageId, retryQueueMessage.PopReceipt);
+                    }
                 }
             }
             Console.ReadKey();
