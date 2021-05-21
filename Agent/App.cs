@@ -1,45 +1,58 @@
-﻿using System;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Azure.Storage.Queues;
+﻿using Azure.Storage.Queues;
 using Azure.Storage.Queues.Models;
-using Microsoft.ApplicationInsights;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Table;
 using Newtonsoft.Json;
 using OrderSupervisor.Common.AzureQueue;
 using OrderSupervisor.Common.Models;
 using OrderSupervisor.Common.Models.ConfirmationDto;
-using OrderSupervisor.Common.Repositories;
+using System;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace OrderSupervisorProcessor
+namespace Agent
 {
-    public class HostedService : IHostedService
+    class App
     {
         private readonly int retryLimit = 5;
         private readonly int maximumBackoff = 10;
-        private int currentBackoff = 0;        
+        private Guid agentId;
+        private int magicNumber;
+        private int currentBackoff = 0;
         private bool startLoop = true;
-
         private QueueMessage retryQueueMessage;
-        private readonly CancellationTokenSource hostTokenSource;
-        private readonly IOrderSupervisorApiClient orderSupervisorApiClient;
-        private readonly QueueClient queueClient;
-        private readonly TelemetryClient telemetryClient;
-        private readonly IRetryIntervalGenerator retryIntervalGenerator;
 
-        public HostedService(HostedServiceMetadata hostedServiceMetadata)
+        private readonly CancellationTokenSource hostTokenSource;
+        private readonly QueueClient queueClient;
+        private readonly CloudStorageAccount cloudStorageAccount;
+        private readonly CloudTableClient tableClient;
+        private readonly CloudTable table;
+        private readonly IRetryIntervalGenerator retryIntervalGenerator;
+        
+        public App(IConfiguration config, IRetryIntervalGenerator retryIntervalGenerator)
         {
-            queueClient = hostedServiceMetadata.QueueClientFactory.GetQueueClient();
-            orderSupervisorApiClient = hostedServiceMetadata.OrderSupervisorApiClient;
-            telemetryClient = hostedServiceMetadata.TelemetryClient;
-            retryIntervalGenerator = hostedServiceMetadata.RetryIntervalGenerator;
-            hostTokenSource = new CancellationTokenSource();
+            this.retryIntervalGenerator = retryIntervalGenerator;
+            hostTokenSource = new CancellationTokenSource();            
+            var connString = config.GetValue<string>("StorageAccount:ConnectionString");
+            var queueName = config.GetValue<string>("StorageAccount:QueueName");
+            var tableName = config.GetValue<string>("StorageAccount:TableName");
+
+            QueueClientOptions queueClientOptions = new QueueClientOptions()
+            {
+                MessageEncoding = QueueMessageEncoding.Base64
+            };
+            queueClient = new QueueClient(connString, queueName, queueClientOptions);
+            cloudStorageAccount = CloudStorageAccount.Parse(connString);
+            tableClient = cloudStorageAccount.CreateCloudTableClient();
+            table = tableClient.GetTableReference(tableName);
+            table.CreateIfNotExistsAsync();
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public void Run(CancellationToken cancellationToken)
         {
-            //Register callback to close client if start is cancelled
+            //Register callback to close client if run is cancelled
             cancellationToken.Register(() =>
             {
                 hostTokenSource.Cancel();
@@ -48,22 +61,22 @@ namespace OrderSupervisorProcessor
 
             if (cancellationToken.IsCancellationRequested)
             {
-                return Task.CompletedTask; //Exit gracefully
-            }
+                Console.WriteLine("Canceling...");
+                return; //Exit gracefully
+            }            
 
-            _= ProcessMessageAsync(cancellationToken);
-
-            return Task.CompletedTask;
-        }
-
-        private async Task ProcessMessageAsync(CancellationToken cancellationToken)
-        {
-            var agentId = Guid.NewGuid();
+            //Generate new agentId.
+            agentId = Guid.NewGuid();
             Random random = new Random();
-            var magicNumber = random.Next(10);
+            magicNumber = random.Next(10);
 
             Console.WriteLine($"I’m agent {agentId}, my magic number is {magicNumber}");
+            
+            ProcessMessage(cancellationToken);
+        }
 
+        private void ProcessMessage(CancellationToken cancellationToken)
+        {
             try
             {
                 //starting for the infinite polling of messages in queue.
@@ -89,7 +102,7 @@ namespace OrderSupervisorProcessor
                                 //routePoisonMessage(retryQueueMessage);
 
                                 //Delete the message so that it does not reappear on the queue
-                                await queueClient.DeleteMessageAsync(retryQueueMessage.MessageId, retryQueueMessage.PopReceipt);
+                                queueClient.DeleteMessageAsync(retryQueueMessage.MessageId, retryQueueMessage.PopReceipt);
                                 continue;
                             }
 
@@ -114,13 +127,13 @@ namespace OrderSupervisorProcessor
                                     OrderStatus = "Processed"
                                 };
 
-                                var result = await orderSupervisorApiClient.SaveOrderProcessStatusAsync(orderConfirmation);
+                                var result = SaveOrderProcessConfirmationStatusAsync(orderConfirmation);
 
                                 // Let the service know we have processed the message and
                                 // it can be safely deleted.
-                                if (result.Status)
+                                if (result.Result.Status)
                                 {
-                                    await queueClient.DeleteMessageAsync(queueMessage.MessageId, queueMessage.PopReceipt);
+                                    queueClient.DeleteMessageAsync(queueMessage.MessageId, queueMessage.PopReceipt);
                                 }
                             }
                         }
@@ -138,12 +151,10 @@ namespace OrderSupervisorProcessor
             }
             catch (Exception exception)
             {
-                telemetryClient.TrackException(exception);
-
                 if (retryQueueMessage != null)
                 {
                     //Implementing retry mechanism for messages not processed due to temporary error.
-                    await queueClient.UpdateMessageAsync(retryQueueMessage.MessageId, retryQueueMessage.PopReceipt, retryQueueMessage.Body,
+                    queueClient.UpdateMessageAsync(retryQueueMessage.MessageId, retryQueueMessage.PopReceipt, retryQueueMessage.Body,
                                 retryIntervalGenerator.GetNext(Convert.ToInt32(retryQueueMessage.DequeueCount)), cancellationToken);
 
                     if (retryQueueMessage.DequeueCount >= retryLimit)
@@ -153,18 +164,33 @@ namespace OrderSupervisorProcessor
                         //routePoisonMessage(retryQueueMessage);
 
                         //Delete the message so that it does not reappear on the queue
-                        await queueClient.DeleteMessageAsync(retryQueueMessage.MessageId, retryQueueMessage.PopReceipt);
+                        queueClient.DeleteMessageAsync(retryQueueMessage.MessageId, retryQueueMessage.PopReceipt);
                     }
                 }
             }
             Console.ReadKey();
         }
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        private async Task<Result> SaveOrderProcessConfirmationStatusAsync(Confirmation orderConfirmation)
         {
-            hostTokenSource.Cancel();
-            //No need to handle the cancellation token, only one operation is performed
-            return queueClient.DeleteIfExistsAsync();
+            Confirmation confirmationEntity = new Confirmation(orderConfirmation.AgentId, orderConfirmation.OrderId)
+            {
+                OrderId = orderConfirmation.OrderId,
+                OrderStatus = orderConfirmation.OrderStatus,
+                AgentId = orderConfirmation.AgentId
+            };
+
+            var operation = TableOperation.InsertOrReplace(confirmationEntity);
+            var response = await table.ExecuteAsync(operation);
+
+            if (null != response.Result)
+            {
+                return new Result { Status = true };
+            }
+            else
+            {
+                return new Result { Status = false };
+            }
         }
     }
 }
