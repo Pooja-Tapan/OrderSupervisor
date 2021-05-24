@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace Agent
 {
-    class App
+    class App : IApp
     {
         private readonly int retryLimit = 5;
         private readonly int maximumBackoff = 10;
@@ -30,11 +30,11 @@ namespace Agent
         private readonly CloudTableClient tableClient;
         private readonly CloudTable table;
         private readonly IRetryIntervalGenerator retryIntervalGenerator;
-        
+
         public App(IConfiguration config, IRetryIntervalGenerator retryIntervalGenerator)
         {
             this.retryIntervalGenerator = retryIntervalGenerator;
-            hostTokenSource = new CancellationTokenSource();            
+            hostTokenSource = new CancellationTokenSource();
             var connString = config.GetValue<string>("StorageAccount:ConnectionString");
             var queueName = config.GetValue<string>("StorageAccount:QueueName");
             var tableName = config.GetValue<string>("StorageAccount:TableName");
@@ -44,6 +44,8 @@ namespace Agent
                 MessageEncoding = QueueMessageEncoding.Base64
             };
             queueClient = new QueueClient(connString, queueName, queueClientOptions);
+            queueClient.CreateIfNotExistsAsync();
+
             cloudStorageAccount = CloudStorageAccount.Parse(connString);
             tableClient = cloudStorageAccount.CreateCloudTableClient();
             table = tableClient.GetTableReference(tableName);
@@ -63,7 +65,7 @@ namespace Agent
             {
                 Console.WriteLine("Canceling...");
                 return; //Exit gracefully
-            }            
+            }
 
             //Generate new agentId.
             agentId = Guid.NewGuid();
@@ -71,7 +73,7 @@ namespace Agent
             magicNumber = random.Next(10);
 
             Console.WriteLine($"I’m agent {agentId}, my magic number is {magicNumber}");
-            
+
             ProcessMessage(cancellationToken);
         }
 
@@ -168,6 +170,7 @@ namespace Agent
                     }
                 }
             }
+            
             Console.ReadKey();
         }
 

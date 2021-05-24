@@ -20,7 +20,7 @@ namespace Agent
             try
             {
                 // calls the Run method in App for processing
-                serviceProvider.GetService<App>().Run(cts.Token);
+                serviceProvider.GetService<IApp>().Run(cts.Token);
             }
             catch (Exception ex)
             {
@@ -44,13 +44,9 @@ namespace Agent
             var config = LoadConfiguration();
             services.AddSingleton(config);
 
-            services.AddSingleton<IQueueClientFactory, QueueClientFactory>();
-            services.AddSingleton<IOrderRepository, OrderRepository>();
-            services.AddSingleton<IRetryIntervalGenerator, ExponentialRetryIntervalGenerator>();
-            services.AddSingleton<ICloudTableClient, CloudTableClient>();
-            
+            services.AddSingleton<IRetryIntervalGenerator, ExponentialRetryIntervalGenerator>();            
             // required to run the application
-            services.AddTransient<App>();
+            services.AddTransient<IApp, App>();
 
             return services;
         }
